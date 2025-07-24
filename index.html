@@ -2,74 +2,230 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Админ-панель | Amana Finance</title>
+  <title>Amana Finance | Учёт договоров</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    * { box-sizing: border-box; }
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
       margin: 0;
-      padding: 0;
+      font-family: sans-serif;
+      background: #f2f4f8;
+      color: #333;
     }
-    .login-container, .content-container {
-      max-width: 500px;
+    .login, .app {
+      max-width: 900px;
       margin: 5vh auto;
       background: white;
       padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.05);
     }
-    h1 {
-      text-align: center;
-      color: #115c30;
-    }
-    input {
-      width: 100%;
-      padding: 0.7rem;
-      margin-top: 1rem;
-      margin-bottom: 1rem;
+    h1 { text-align: center; color: #115c30; }
+    input, select, button {
+      padding: 10px;
       font-size: 1rem;
-    }
-    button {
+      margin-top: 10px;
       width: 100%;
-      background: #95c11f;
-      color: white;
-      padding: 0.7rem;
-      border: none;
-      font-size: 1rem;
-      cursor: pointer;
-      border-radius: 5px;
     }
-    .error {
-      color: red;
-      text-align: center;
-    }
-    details {
-      margin-top: 1rem;
+    .hidden { display: none; }
+    .contract {
       border: 1px solid #ccc;
-      border-radius: 5px;
+      border-radius: 6px;
+      margin-bottom: 1rem;
     }
     summary {
-      padding: 1rem;
+      background: #e6f3e6;
+      padding: 10px;
       font-weight: bold;
       cursor: pointer;
-      background: #e6f3e6;
-      border-bottom: 1px solid #ccc;
     }
-    .contract-details {
+    .contract-body {
       padding: 1rem;
-      line-height: 1.6;
+    }
+    .contract-body p {
+      margin: 5px 0;
+    }
+    .paid {
+      color: green;
+      font-weight: bold;
+    }
+    .unpaid {
+      color: red;
+      font-weight: bold;
+    }
+    .actions button {
+      width: auto;
+      margin-right: 10px;
+    }
+    .paycheck {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .paycheck label {
+      background: #f2f2f2;
+      padding: 5px 10px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+    }
+    .search-sort {
+      display: flex;
+      gap: 10px;
+      margin: 1rem 0;
+      flex-wrap: wrap;
     }
   </style>
 </head>
 <body>
+  <div class="login" id="login">
+    <h1>Вход в систему</h1>
+    <input type="text" id="username" placeholder="Логин">
+    <input type="password" id="password" placeholder="Пароль">
+    <button onclick="login()">Войти</button>
+    <p id="login-error" style="color:red;"></p>
+  </div>
 
-<div class="login-container" id="login-form">
-  <h1>Вход в админку</h1>
-  <input type="text" id="username" placeholder="Логин">
-  <input type="password" id="password" placeholder="Пароль">
-  <button onclick="login()">Войти</button>
-  <p class="error" id="error-msg"></p>
-</div>
+  <div class="app hidden" id="app">
+    <h1>Список договоров</h1>
 
-<div class="content-c
+    <div class="search-sort">
+      <input type="text" id="search" placeholder="Поиск по ФИО или телефону" oninput="renderContracts()">
+      <select id="sort" onchange="renderContracts()">
+        <option value="recent">Сначала новые</option>
+        <option value="old">Сначала старые</option>
+      </select>
+      <button onclick="exportData()">Экспорт JSON</button>
+      <button onclick="showForm()">Добавить договор</button>
+    </div>
+
+    <div id="contract-list"></div>
+
+    <div class="hidden" id="form-block">
+      <h2>Новый договор</h2>
+      <input id="client" placeholder="ФИО клиента">
+      <input id="phone" placeholder="Телефон клиента">
+      <input id="guarantor" placeholder="Телефон поручителя">
+      <input id="address" placeholder="Адрес проживания">
+      <input id="cost" type="number" placeholder="Себестоимость">
+      <input id="price" type="number" placeholder="Цена продажи">
+      <input id="prepay" type="number" placeholder="Первый взнос">
+      <input id="months" type="number" placeholder="Срок (мес)">
+      <input id="start" type="date" placeholder="Дата продажи">
+      <button onclick="saveContract()">Сохранить</button>
+    </div>
+  </div>
+
+  <script>
+    const login = () => {
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      if (u === 'admin' && p === '1234') {
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        renderContracts();
+      } else {
+        document.getElementById('login-error').innerText = 'Неверные данные';
+      }
+    };
+
+    const getContracts = () => JSON.parse(localStorage.getItem('contracts') || '[]');
+    const setContracts = (data) => localStorage.setItem('contracts', JSON.stringify(data));
+
+    function saveContract() {
+      const data = getContracts();
+      const obj = {
+        id: Date.now(),
+        client: val('client'),
+        phone: val('phone'),
+        guarantor: val('guarantor'),
+        address: val('address'),
+        cost: +val('cost'),
+        price: +val('price'),
+        prepay: +val('prepay'),
+        months: +val('months'),
+        start: val('start'),
+        payments: [],
+      };
+      const startDate = new Date(obj.start);
+      for (let i = 0; i < obj.months; i++) {
+        const d = new Date(startDate);
+        d.setMonth(d.getMonth() + i);
+        obj.payments.push({ date: d.toISOString().split('T')[0], paid: false });
+      }
+      data.push(obj);
+      setContracts(data);
+      hideForm();
+      renderContracts();
+    }
+
+    function val(id) {
+      return document.getElementById(id).value;
+    }
+
+    function renderContracts() {
+      const q = document.getElementById('search').value.toLowerCase();
+      const sort = document.getElementById('sort').value;
+      let data = getContracts();
+      if (sort === 'recent') data.sort((a,b)=>b.id-a.id);
+      else data.sort((a,b)=>a.id-b.id);
+      const filtered = data.filter(c => c.client.toLowerCase().includes(q) || c.phone.includes(q));
+      document.getElementById('contract-list').innerHTML = filtered.map(c => `
+        <details class="contract">
+          <summary>${c.client} — ${c.start}</summary>
+          <div class="contract-body">
+            <p><b>Телефон:</b> ${c.phone}</p>
+            <p><b>Поручитель:</b> ${c.guarantor}</p>
+            <p><b>Адрес:</b> ${c.address}</p>
+            <p><b>Себестоимость:</b> ${c.cost} ₽</p>
+            <p><b>Продажа:</b> ${c.price} ₽</p>
+            <p><b>Первый взнос:</b> ${c.prepay} ₽</p>
+            <p><b>Остаток:</b> ${c.price - c.prepay} ₽</p>
+            <div class="paycheck">
+              ${c.payments.map((p, i) => `
+                <label><input type="checkbox" onchange="togglePaid(${c.id},${i})" ${p.paid ? 'checked' : ''}> ${p.date}</label>
+              `).join('')}
+            </div>
+            <div class="actions">
+              <button onclick="deleteContract(${c.id})">Удалить</button>
+              <a href="https://wa.me/${c.phone.replace(/[^\d]/g,'')}" target="_blank">WhatsApp</a>
+            </div>
+          </div>
+        </details>
+      `).join('');
+    }
+
+    function togglePaid(cid, index) {
+      const data = getContracts();
+      const contract = data.find(c => c.id === cid);
+      contract.payments[index].paid = !contract.payments[index].paid;
+      setContracts(data);
+    }
+
+    function deleteContract(id) {
+      if (!confirm('Удалить договор?')) return;
+      const data = getContracts().filter(c => c.id !== id);
+      setContracts(data);
+      renderContracts();
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(getContracts(), null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contracts.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function showForm() {
+      document.getElementById('form-block').classList.remove('hidden');
+    }
+    function hideForm() {
+      document.getElementById('form-block').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
