@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Админ-панель | Amana Finance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -11,76 +11,65 @@
       margin: 0;
       padding: 0;
     }
-    header {
-      background: #115c30;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-    }
-    .container {
-      max-width: 1000px;
-      margin: 2rem auto;
+    .login-container, .content-container {
+      max-width: 500px;
+      margin: 5vh auto;
       background: white;
-      border-radius: 8px;
       padding: 2rem;
+      border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-    .contract {
+    h1 {
+      text-align: center;
+      color: #115c30;
+    }
+    input {
+      width: 100%;
+      padding: 0.7rem;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+    }
+    button {
+      width: 100%;
+      background: #95c11f;
+      color: white;
+      padding: 0.7rem;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .error {
+      color: red;
+      text-align: center;
+    }
+    details {
+      margin-top: 1rem;
       border: 1px solid #ccc;
       border-radius: 5px;
-      margin-bottom: 1rem;
     }
-    .contract summary {
-      cursor: pointer;
+    summary {
       padding: 1rem;
       font-weight: bold;
-      background-color: #e6f3e6;
+      cursor: pointer;
+      background: #e6f3e6;
       border-bottom: 1px solid #ccc;
     }
     .contract-details {
       padding: 1rem;
       line-height: 1.6;
     }
-    .dates {
-      margin-top: 0.5rem;
-    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Админ-панель | Договора</h1>
-  </header>
 
-  <div class="container">
-    <details class="contract">
-      <summary>Договор №001 — Ахмедов Иса</summary>
-      <div class="contract-details">
-        <p><strong>Дата продажи:</strong> 12.07.2025</p>
-        <p><strong>ФИО клиента:</strong> Ахмедов Иса</p>
-        <p><strong>Телефон клиента:</strong> +7 928 123 45 67</p>
-        <p><strong>Телефон поручителя:</strong> +7 928 765 43 21</p>
-        <p><strong>Адрес проживания:</strong> г. Грозный, ул. Ленина, д. 10</p>
-        <p><strong>Себестоимость товара:</strong> 80 000 ₽</p>
-        <p><strong>Цена продажи:</strong> 100 000 ₽</p>
-        <p><strong>Первоначальный взнос:</strong> 25 000 ₽</p>
-        <p><strong>Остаток к оплате:</strong> 75 000 ₽</p>
-        <p><strong>Срок рассрочки:</strong> 6 месяцев</p>
-        <div class="dates">
-          <strong>Даты ежемесячной оплаты:</strong>
-          <ul>
-            <li>12.08.2025</li>
-            <li>12.09.2025</li>
-            <li>12.10.2025</li>
-            <li>12.11.2025</li>
-            <li>12.12.2025</li>
-            <li>12.01.2026</li>
-          </ul>
-        </div>
-      </div>
-    </details>
+<div class="login-container" id="login-form">
+  <h1>Вход в админку</h1>
+  <input type="text" id="username" placeholder="Логин">
+  <input type="password" id="password" placeholder="Пароль">
+  <button onclick="login()">Войти</button>
+  <p class="error" id="error-msg"></p>
+</div>
 
-    <!-- Следующие договоры можно добавить ниже аналогично -->
-
-  </div>
-</body>
-</html>
+<div class="content-c
