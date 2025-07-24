@@ -3,243 +3,160 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Amana Finance — Учёт договоров</title>
+  <title>Amana Finance — Учёт договоров (Firebase)</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAT6g-Y-ijCIe7lwm9AnZjl7OqvKlTJ1H8",
+      authDomain: "amanafinance-13677.firebaseapp.com",
+      projectId: "amanafinance-13677",
+      storageBucket: "amanafinance-13677.firebasestorage.app",
+      messagingSenderId: "292908107302",
+      appId: "1:292908107302:web:9b8637140154516a43c8e7",
+      measurementId: "G-3CPBN217K3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const contractsRef = collection(db, "contracts");
+
+    const loginForm = document.getElementById('login');
+    const appBlock = document.getElementById('app');
+    const contractsContainer = document.getElementById('contracts');
+
+    document.querySelector("button[onclick='login()']").addEventListener("click", () => {
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      if (u === 'admin' && p === '1234') {
+        loginForm.classList.add('hidden');
+        appBlock.classList.remove('hidden');
+        render();
+      } else {
+        document.getElementById('login-error').textContent = 'Неверные данные';
+      }
+    });
+
+    document.getElementById("sort").addEventListener("change", render);
+    document.getElementById("search").addEventListener("input", render);
+
+    async function render() {
+      const snapshot = await getDocs(contractsRef);
+      const q = document.getElementById("search").value.toLowerCase();
+      const sort = document.getElementById("sort").value;
+      let list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      if (sort === 'recent') list.sort((a,b)=>b.timestamp - a.timestamp);
+      else list.sort((a,b)=>a.timestamp - b.timestamp);
+
+      list = list.filter(c => c.client.toLowerCase().includes(q) || c.phone.includes(q));
+      contractsContainer.innerHTML = list.map(c => `
+        <details>
+          <summary>${c.client} — ${c.start}</summary>
+          <div class="contract-body">
+            <p><b>Телефон:</b> ${c.phone}</p>
+            <p><b>Поручитель:</b> ${c.guarantor}</p>
+            <p><b>Адрес:</b> ${c.address}</p>
+            <p><b>Себестоимость:</b> ${c.cost} ₽</p>
+            <p><b>Продажа:</b> ${c.price} ₽</p>
+            <p><b>Первый взнос:</b> ${c.prepay} ₽</p>
+            <p><b>Остаток:</b> ${c.price - c.prepay} ₽</p>
+            <p><b>Связь:</b> <a href="https://wa.me/${c.phone.replace(/\D/g,'')}" target="_blank">WhatsApp</a></p>
+            <button onclick="deleteContract('${c.id}')">Удалить</button>
+          </div>
+        </details>
+      `).join("");
+    }
+
+    window.deleteContract = async function(id) {
+      await deleteDoc(doc(db, "contracts", id));
+      render();
+    }
+
+    document.querySelector("button[onclick='saveContract()']").addEventListener("click", async () => {
+      const obj = {
+        client: document.getElementById('client').value,
+        phone: document.getElementById('phone').value,
+        guarantor: document.getElementById('guarantor').value,
+        address: document.getElementById('address').value,
+        cost: +document.getElementById('cost').value,
+        price: +document.getElementById('price').value,
+        prepay: +document.getElementById('prepay').value,
+        months: +document.getElementById('months').value,
+        start: document.getElementById('start').value,
+        timestamp: Date.now()
+      };
+      await addDoc(contractsRef, obj);
+      document.getElementById('form-block').classList.add('hidden');
+      render();
+    });
+
+    document.querySelector("button[onclick='showForm()']").addEventListener("click", () => {
+      document.getElementById('form-block').classList.remove('hidden');
+    });
+
+    onSnapshot(contractsRef, () => render());
+  </script>
   <style>
-    * { box-sizing: border-box; }
     body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: sans-serif;
       background: #f2f4f8;
-      color: #333;
+      margin: 0;
+      padding: 0;
     }
     .container {
-      max-width: 1000px;
+      max-width: 900px;
       margin: auto;
-      padding: 1rem;
-    }
-    .login, .app {
-      background: white;
-      border-radius: 8px;
       padding: 2rem;
-      margin-top: 5vh;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
-    h1 { text-align: center; color: #115c30; margin-bottom: 1.5rem; }
-    input, select, button {
-      padding: 10px;
-      font-size: 1rem;
-      margin: 0.5rem 0;
-      width: 100%;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
-    button {
-      background: #95c11f;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover { background: #7aa317; }
     .hidden { display: none; }
-    details {
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      margin: 1rem 0;
+    input, button, select {
+      padding: 10px;
+      margin: 5px 0;
+      width: 100%;
+      box-sizing: border-box;
     }
-    summary {
-      background: #e6f3e6;
-      padding: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .contract-body {
-      padding: 1rem;
-    }
-    .paycheck {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .paycheck label {
-      background: #f2f2f2;
-      padding: 6px 10px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-    }
-    .topbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-    .topbar button {
-      flex: 1;
-      min-width: 150px;
-    }
-    .summary-box {
-      background: #f9f9f9;
-      border-left: 4px solid #95c11f;
-      padding: 1rem;
-      margin-bottom: 1rem;
-    }
-    .late { color: red; font-weight: bold; }
-    .today { background: #fff6e0; }
-    @media(max-width: 600px) {
-      .topbar { flex-direction: column; }
-    }
+    button { background: #95c11f; border: none; color: white; cursor: pointer; }
+    button:hover { background: #7aa317; }
+    .contract-body { background: white; padding: 1rem; border-radius: 6px; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
-<div class="container">
-  <div class="login" id="login">
-    <h1>Вход</h1>
-    <input type="text" id="username" placeholder="Логин">
-    <input type="password" id="password" placeholder="Пароль">
-    <button onclick="login()">Войти</button>
-    <p id="login-error" style="color:red"></p>
-  </div>
-
-  <div class="app hidden" id="app">
-    <h1>Договора</h1>
-
-    <div class="summary-box" id="alerts"></div>
-
-    <div class="topbar">
-      <input id="search" placeholder="Поиск по ФИО / номеру" oninput="render()">
-      <select id="sort" onchange="render()">
-        <option value="recent">Сначала новые</option>
-        <option value="old">Сначала старые</option>
-      </select>
-      <button onclick="showForm()">+ Добавить</button>
-      <button onclick="exportData()">⬇ Экспорт</button>
+  <div class="container">
+    <div id="login">
+      <h2>Вход</h2>
+      <input id="username" placeholder="Логин">
+      <input id="password" placeholder="Пароль" type="password">
+      <button>Войти</button>
+      <p id="login-error" style="color:red"></p>
     </div>
 
-    <div id="contracts"></div>
-
-    <div id="form-block" class="hidden">
-      <h2>Новый договор</h2>
-      <input id="client" placeholder="ФИО клиента">
-      <input id="phone" placeholder="Телефон клиента">
-      <input id="guarantor" placeholder="Телефон поручителя">
-      <input id="address" placeholder="Адрес">
-      <input id="cost" type="number" placeholder="Себестоимость">
-      <input id="price" type="number" placeholder="Цена продажи">
-      <input id="prepay" type="number" placeholder="Первый взнос">
-      <input id="months" type="number" placeholder="Срок (мес)">
-      <input id="start" type="date">
-      <button onclick="saveContract()">Сохранить</button>
-    </div>
-  </div>
-</div>
-
-<script>
-const login = () => {
-  const u = document.getElementById('username').value;
-  const p = document.getElementById('password').value;
-  if (u === 'admin' && p === '1234') {
-    document.getElementById('login').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    render();
-  } else {
-    document.getElementById('login-error').textContent = 'Неверные данные';
-  }
-};
-
-const getData = () => JSON.parse(localStorage.getItem('contracts') || '[]');
-const setData = d => localStorage.setItem('contracts', JSON.stringify(d));
-
-function saveContract() {
-  const d = getData();
-  const obj = {
-    id: Date.now(),
-    client: document.getElementById('client').value,
-    phone: document.getElementById('phone').value,
-    guarantor: document.getElementById('guarantor').value,
-    address: document.getElementById('address').value,
-    cost: +document.getElementById('cost').value,
-    price: +document.getElementById('price').value,
-    prepay: +document.getElementById('prepay').value,
-    months: +document.getElementById('months').value,
-    start: document.getElementById('start').value,
-    payments: [],
-  };
-  let dt = new Date(obj.start);
-  for (let i = 0; i < obj.months; i++) {
-    let pay = new Date(dt);
-    pay.setMonth(dt.getMonth() + i);
-    obj.payments.push({ date: pay.toISOString().split('T')[0], paid: false });
-  }
-  d.push(obj); setData(d);
-  document.getElementById('form-block').classList.add('hidden');
-  render();
-}
-
-function render() {
-  let list = getData();
-  let q = document.getElementById('search').value.toLowerCase();
-  if (document.getElementById('sort').value === 'old') list.sort((a,b)=>a.id-b.id);
-  else list.sort((a,b)=>b.id-a.id);
-  let filtered = list.filter(c => c.client.toLowerCase().includes(q) || c.phone.includes(q));
-
-  let alerts = [], now = new Date().toISOString().split('T')[0], overdue = [];
-  filtered.forEach(c => {
-    c.payments.forEach(p => {
-      if (!p.paid && p.date === now) alerts.push(`${c.client} — оплата сегодня`);
-      if (!p.paid && p.date < now) overdue.push(`${c.client} — просрочка с ${p.date}`);
-    });
-  });
-  let alertsEl = document.getElementById('alerts');
-  alertsEl.innerHTML = '';
-  if (alerts.length) alertsEl.innerHTML += `<b>Сегодня:</b><br>${alerts.join('<br>')}<hr>`;
-  if (overdue.length) alertsEl.innerHTML += `<b>Просрочки:</b><br><span class="late">${overdue.join('<br>')}</span>`;
-
-  document.getElementById('contracts').innerHTML = filtered.map(c => `
-    <details class="${c.payments.some(p=>p.date===now&&!p.paid)?'today':''}">
-      <summary>${c.client} — ${c.start}</summary>
-      <div class="contract-body">
-        <p><b>Телефон:</b> ${c.phone}</p>
-        <p><b>Поручитель:</b> ${c.guarantor}</p>
-        <p><b>Адрес:</b> ${c.address}</p>
-        <p><b>Себестоимость:</b> ${c.cost} ₽</p>
-        <p><b>Продажа:</b> ${c.price} ₽</p>
-        <p><b>Первый взнос:</b> ${c.prepay} ₽</p>
-        <p><b>Остаток:</b> ${c.price - c.prepay} ₽</p>
-        <div class="paycheck">
-          ${c.payments.map((p,i)=>`<label><input type='checkbox' ${p.paid?'checked':''} onchange='toggle(${c.id},${i})'> ${p.date}</label>`).join('')}
-        </div>
-        <p><b>Связь:</b> <a href="https://wa.me/${c.phone.replace(/\D/g,'')}" target="_blank">WhatsApp</a></p>
-        <button onclick="del(${c.id})">Удалить</button>
+    <div id="app" class="hidden">
+      <h1>Учёт договоров</h1>
+      <div>
+        <input id="search" placeholder="Поиск">
+        <select id="sort">
+          <option value="recent">Сначала новые</option>
+          <option value="old">Сначала старые</option>
+        </select>
+        <button>+ Добавить</button>
+        <button onclick="location.reload()">Обновить</button>
       </div>
-    </details>
-  `).join('');
-}
-
-function toggle(id, i) {
-  let d = getData();
-  let c = d.find(e => e.id === id);
-  c.payments[i].paid = !c.payments[i].paid;
-  setData(d); render();
-}
-
-function del(id) {
-  if (confirm('Удалить?')) {
-    let d = getData().filter(c => c.id !== id);
-    setData(d); render();
-  }
-}
-
-function exportData() {
-  let blob = new Blob([JSON.stringify(getData(), null, 2)], {type:'application/json'});
-  let url = URL.createObjectURL(blob);
-  let a = document.createElement('a');
-  a.href = url; a.download = 'contracts.json'; a.click();
-  URL.revokeObjectURL(url);
-}
-
-function showForm() {
-  document.getElementById('form-block').classList.remove('hidden');
-}
-</script>
+      <div id="form-block" class="hidden">
+        <input id="client" placeholder="ФИО клиента">
+        <input id="phone" placeholder="Телефон клиента">
+        <input id="guarantor" placeholder="Телефон поручителя">
+        <input id="address" placeholder="Адрес">
+        <input id="cost" placeholder="Себестоимость">
+        <input id="price" placeholder="Цена продажи">
+        <input id="prepay" placeholder="Первый взнос">
+        <input id="months" placeholder="Срок (мес)">
+        <input id="start" type="date">
+        <button>Сохранить</button>
+      </div>
+      <div id="contracts"></div>
+    </div>
+  </div>
 </body>
 </html>
