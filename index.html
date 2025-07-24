@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Amana Finance — Учёт договоров (Firebase)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Amana Finance — Учёт договоров</title>
+
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAT6g-Y-ijCIe7lwm9AnZjl7OqvKlTJ1H8",
@@ -22,36 +24,44 @@
     const db = getFirestore(app);
     const contractsRef = collection(db, "contracts");
 
-    const loginForm = document.getElementById('login');
-    const appBlock = document.getElementById('app');
-    const contractsContainer = document.getElementById('contracts');
+    window.addEventListener("DOMContentLoaded", () => {
+      const loginBtn = document.getElementById("login-btn");
+      const loginBlock = document.getElementById("login");
+      const appBlock = document.getElementById("app");
 
-    document.querySelector("button[onclick='login()']").addEventListener("click", () => {
-      const u = document.getElementById('username').value;
-      const p = document.getElementById('password').value;
-      if (u === 'admin' && p === '1234') {
-        loginForm.classList.add('hidden');
-        appBlock.classList.remove('hidden');
-        render();
-      } else {
-        document.getElementById('login-error').textContent = 'Неверные данные';
-      }
+      loginBtn.addEventListener("click", () => {
+        const u = document.getElementById("username").value;
+        const p = document.getElementById("password").value;
+        if (u === "admin" && p === "1234") {
+          loginBlock.classList.add("hidden");
+          appBlock.classList.remove("hidden");
+          render();
+        } else {
+          document.getElementById("login-error").textContent = "Неверный логин или пароль";
+        }
+      });
+
+      document.getElementById("sort").addEventListener("change", render);
+      document.getElementById("search").addEventListener("input", render);
+      document.getElementById("show-form").addEventListener("click", () =>
+        document.getElementById("form-block").classList.remove("hidden")
+      );
+      document.getElementById("save-contract").addEventListener("click", saveContract);
+
+      onSnapshot(contractsRef, render);
     });
-
-    document.getElementById("sort").addEventListener("change", render);
-    document.getElementById("search").addEventListener("input", render);
 
     async function render() {
       const snapshot = await getDocs(contractsRef);
       const q = document.getElementById("search").value.toLowerCase();
       const sort = document.getElementById("sort").value;
+      const contractsEl = document.getElementById("contracts");
+
       let list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-      if (sort === 'recent') list.sort((a,b)=>b.timestamp - a.timestamp);
-      else list.sort((a,b)=>a.timestamp - b.timestamp);
-
       list = list.filter(c => c.client.toLowerCase().includes(q) || c.phone.includes(q));
-      contractsContainer.innerHTML = list.map(c => `
+      list.sort((a, b) => sort === "old" ? a.timestamp - b.timestamp : b.timestamp - a.timestamp);
+
+      contractsEl.innerHTML = list.map(c => `
         <details>
           <summary>${c.client} — ${c.start}</summary>
           <div class="contract-body">
@@ -62,99 +72,124 @@
             <p><b>Продажа:</b> ${c.price} ₽</p>
             <p><b>Первый взнос:</b> ${c.prepay} ₽</p>
             <p><b>Остаток:</b> ${c.price - c.prepay} ₽</p>
-            <p><b>Связь:</b> <a href="https://wa.me/${c.phone.replace(/\D/g,'')}" target="_blank">WhatsApp</a></p>
+            <p><b>WhatsApp:</b> <a href="https://wa.me/${c.phone.replace(/\\D/g, '')}" target="_blank">Написать</a></p>
             <button onclick="deleteContract('${c.id}')">Удалить</button>
           </div>
         </details>
       `).join("");
     }
 
-    window.deleteContract = async function(id) {
-      await deleteDoc(doc(db, "contracts", id));
-      render();
-    }
-
-    document.querySelector("button[onclick='saveContract()']").addEventListener("click", async () => {
+    async function saveContract() {
       const obj = {
-        client: document.getElementById('client').value,
-        phone: document.getElementById('phone').value,
-        guarantor: document.getElementById('guarantor').value,
-        address: document.getElementById('address').value,
-        cost: +document.getElementById('cost').value,
-        price: +document.getElementById('price').value,
-        prepay: +document.getElementById('prepay').value,
-        months: +document.getElementById('months').value,
-        start: document.getElementById('start').value,
+        client: document.getElementById("client").value,
+        phone: document.getElementById("phone").value,
+        guarantor: document.getElementById("guarantor").value,
+        address: document.getElementById("address").value,
+        cost: +document.getElementById("cost").value,
+        price: +document.getElementById("price").value,
+        prepay: +document.getElementById("prepay").value,
+        months: +document.getElementById("months").value,
+        start: document.getElementById("start").value,
         timestamp: Date.now()
       };
       await addDoc(contractsRef, obj);
-      document.getElementById('form-block').classList.add('hidden');
+      document.getElementById("form-block").classList.add("hidden");
       render();
-    });
+    }
 
-    document.querySelector("button[onclick='showForm()']").addEventListener("click", () => {
-      document.getElementById('form-block').classList.remove('hidden');
-    });
-
-    onSnapshot(contractsRef, () => render());
+    window.deleteContract = async function (id) {
+      await deleteDoc(doc(db, "contracts", id));
+      render();
+    }
   </script>
+
   <style>
     body {
       font-family: sans-serif;
-      background: #f2f4f8;
       margin: 0;
-      padding: 0;
+      background: #f2f4f8;
     }
     .container {
-      max-width: 900px;
+      max-width: 1400px;
       margin: auto;
       padding: 2rem;
     }
     .hidden { display: none; }
-    input, button, select {
+    input, select, button {
       padding: 10px;
-      margin: 5px 0;
+      margin: 6px 0;
       width: 100%;
       box-sizing: border-box;
+      font-size: 1rem;
     }
-    button { background: #95c11f; border: none; color: white; cursor: pointer; }
-    button:hover { background: #7aa317; }
-    .contract-body { background: white; padding: 1rem; border-radius: 6px; margin-top: 0.5rem; }
+    button {
+      background: #95c11f;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #7aa317;
+    }
+    details {
+      margin: 1rem 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: white;
+    }
+    summary {
+      padding: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      background: #e6f3e6;
+    }
+    .contract-body {
+      padding: 1rem;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 1rem; }
+    }
   </style>
 </head>
+
 <body>
   <div class="container">
+    <!-- LOGIN -->
     <div id="login">
       <h2>Вход</h2>
-      <input id="username" placeholder="Логин">
-      <input id="password" placeholder="Пароль" type="password">
-      <button>Войти</button>
-      <p id="login-error" style="color:red"></p>
+      <input id="username" placeholder="Логин" />
+      <input id="password" type="password" placeholder="Пароль" />
+      <button id="login-btn">Войти</button>
+      <p id="login-error" style="color:red;"></p>
     </div>
 
+    <!-- APP -->
     <div id="app" class="hidden">
-      <h1>Учёт договоров</h1>
-      <div>
-        <input id="search" placeholder="Поиск">
+      <h1>Договора</h1>
+      <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
+        <input id="search" placeholder="Поиск по ФИО / телефону" />
         <select id="sort">
           <option value="recent">Сначала новые</option>
           <option value="old">Сначала старые</option>
         </select>
-        <button>+ Добавить</button>
-        <button onclick="location.reload()">Обновить</button>
+        <button id="show-form">+ Добавить</button>
       </div>
+
+      <!-- FORM -->
       <div id="form-block" class="hidden">
-        <input id="client" placeholder="ФИО клиента">
-        <input id="phone" placeholder="Телефон клиента">
-        <input id="guarantor" placeholder="Телефон поручителя">
-        <input id="address" placeholder="Адрес">
-        <input id="cost" placeholder="Себестоимость">
-        <input id="price" placeholder="Цена продажи">
-        <input id="prepay" placeholder="Первый взнос">
-        <input id="months" placeholder="Срок (мес)">
-        <input id="start" type="date">
-        <button>Сохранить</button>
+        <input id="client" placeholder="ФИО клиента" />
+        <input id="phone" placeholder="Телефон клиента" />
+        <input id="guarantor" placeholder="Телефон поручителя" />
+        <input id="address" placeholder="Адрес" />
+        <input id="cost" type="number" placeholder="Себестоимость" />
+        <input id="price" type="number" placeholder="Цена продажи" />
+        <input id="prepay" type="number" placeholder="Первый взнос" />
+        <input id="months" type="number" placeholder="Срок (мес)" />
+        <input id="start" type="date" />
+        <button id="save-contract">Сохранить</button>
       </div>
+
+      <!-- CONTRACT LIST -->
       <div id="contracts"></div>
     </div>
   </div>
