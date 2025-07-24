@@ -4,11 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Amana Finance — Учёт договоров</title>
-
-  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, onSnapshot, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAT6g-Y-ijCIe7lwm9AnZjl7OqvKlTJ1H8",
@@ -25,16 +23,12 @@
     const contractsRef = collection(db, "contracts");
 
     window.addEventListener("DOMContentLoaded", () => {
-      const loginBtn = document.getElementById("login-btn");
-      const loginBlock = document.getElementById("login");
-      const appBlock = document.getElementById("app");
-
-      loginBtn.addEventListener("click", () => {
+      document.getElementById("login-btn").addEventListener("click", () => {
         const u = document.getElementById("username").value;
         const p = document.getElementById("password").value;
         if (u === "admin" && p === "1234") {
-          loginBlock.classList.add("hidden");
-          appBlock.classList.remove("hidden");
+          document.getElementById("login").classList.add("hidden");
+          document.getElementById("app").classList.remove("hidden");
           render();
         } else {
           document.getElementById("login-error").textContent = "Неверный логин или пароль";
@@ -72,7 +66,12 @@
             <p><b>Продажа:</b> ${c.price} ₽</p>
             <p><b>Первый взнос:</b> ${c.prepay} ₽</p>
             <p><b>Остаток:</b> ${c.price - c.prepay} ₽</p>
-            <p><b>WhatsApp:</b> <a href="https://wa.me/${c.phone.replace(/\\D/g, '')}" target="_blank">Написать</a></p>
+            <div class="paycheck">
+              ${c.payments ? c.payments.map((p, i) => `
+                <label><input type="checkbox" ${p.paid ? 'checked' : ''} onchange="togglePaid('${c.id}', ${i})"> ${p.date}</label>
+              `).join('') : ''}
+            </div>
+            <p><b>WhatsApp:</b> <a href="https://wa.me/${c.phone.replace(/\D/g, '')}" target="_blank">Написать</a></p>
             <button onclick="deleteContract('${c.id}')">Удалить</button>
           </div>
         </details>
@@ -90,15 +89,33 @@
         prepay: +document.getElementById("prepay").value,
         months: +document.getElementById("months").value,
         start: document.getElementById("start").value,
+        payments: [],
         timestamp: Date.now()
       };
+
+      const startDate = new Date(obj.start);
+      for (let i = 0; i < obj.months; i++) {
+        const d = new Date(startDate);
+        d.setMonth(startDate.getMonth() + i);
+        obj.payments.push({ date: d.toISOString().split('T')[0], paid: false });
+      }
+
       await addDoc(contractsRef, obj);
       document.getElementById("form-block").classList.add("hidden");
       render();
     }
 
-    window.deleteContract = async function (id) {
+    async function deleteContract(id) {
       await deleteDoc(doc(db, "contracts", id));
+      render();
+    }
+
+    window.togglePaid = async function (id, index) {
+      const snap = await getDocs(contractsRef);
+      const docRef = snap.docs.find(d => d.id === id);
+      const data = docRef.data();
+      data.payments[index].paid = !data.payments[index].paid;
+      await updateDoc(doc(db, "contracts", id), { payments: data.payments });
       render();
     }
   </script>
@@ -110,7 +127,7 @@
       background: #f2f4f8;
     }
     .container {
-      max-width: 1400px;
+      max-width: 1200px;
       margin: auto;
       padding: 2rem;
     }
@@ -146,15 +163,23 @@
     .contract-body {
       padding: 1rem;
     }
-    @media (max-width: 600px) {
-      .container { padding: 1rem; }
+    .paycheck {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .paycheck label {
+      background: #f2f2f2;
+      padding: 5px 10px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
     }
   </style>
 </head>
-
 <body>
   <div class="container">
-    <!-- LOGIN -->
     <div id="login">
       <h2>Вход</h2>
       <input id="username" placeholder="Логин" />
@@ -163,7 +188,6 @@
       <p id="login-error" style="color:red;"></p>
     </div>
 
-    <!-- APP -->
     <div id="app" class="hidden">
       <h1>Договора</h1>
       <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
@@ -175,7 +199,6 @@
         <button id="show-form">+ Добавить</button>
       </div>
 
-      <!-- FORM -->
       <div id="form-block" class="hidden">
         <input id="client" placeholder="ФИО клиента" />
         <input id="phone" placeholder="Телефон клиента" />
@@ -189,7 +212,6 @@
         <button id="save-contract">Сохранить</button>
       </div>
 
-      <!-- CONTRACT LIST -->
       <div id="contracts"></div>
     </div>
   </div>
